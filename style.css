@@ -1,0 +1,78 @@
+body {
+  background-color: #0F3045; 
+  color: #ffffff; 
+  font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+}
+
+/* Header */
+.quarto-dashboard #quarto-dashboard-header .navbar .navbar-container {
+  background-color: #0B2130;    
+  color: #DCF0F8;              
+  padding: 8px 20px;          
+  box-shadow: 0 4px 6px rgba(0,0,0,0.2); 
+  border-bottom: 2px solid #DCF0F8; 
+  
+}
+
+/* Título do dashboard */
+.quarto-dashboard #quarto-dashboard-header .navbar .navbar-title a {
+  color: #DCF0F8;              
+  font-size: 24px;             
+  font-weight: bold;           
+  text-transform: uppercase;   
+}
+
+/*  Abas do menu  */
+.quarto-dashboard #quarto-dashboard-header .navbar .navbar-container .navbar-nav a {
+  color: #dcf8e2;              
+  text-decoration: none;       
+  padding: 6px 12px;           
+  font-weight: 600;            
+  margin-right: 25px;
+}
+
+/* Hover das abas  */
+.quarto-dashboard #quarto-dashboard-header .navbar .navbar-container .navbar-nav a:hover {
+  color: #DCF0F8;              
+  background-color: rgba(255,255,255,0.1); 
+  border-radius: 5px;          
+}
+
+/*  Links das abas dos cards  */
+a.nav-link {
+  color: #0F3045;            
+  font-weight: 600;           
+  text-decoration: none;      
+  padding: 6px 12px;          
+  border-radius: 5px;
+}
+
+/*  Hover dos links das abas dos cards  */
+a.nav-link:hover {
+  color: #1E6085;             
+  background-color: rgba(255,255,255,0.1);
+}
+
+/* Introdução */
+.bloco-intro {
+    font-size: 20px;        
+    text-align: justify;
+    line-height: 1.6;       
+    color: #333333;         
+    padding: 15px;          
+    border-left: 5px solid #0F3045; 
+    border-radius: 5px;
+}
+
+/* Conclusão */
+.bloco-conclusao {
+    font-size: 20px;        
+    text-align: justify;
+    line-height: 1.6;      
+    color: #333333;         
+    padding: 15px;          
+    border-left: 8px solid #0F3045; 
+    height: auto;
+    overflow-y: auto;   
+    border-radius: 5px;
+}

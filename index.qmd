@@ -1,0 +1,776 @@
+---
+title: "Relatório de Acidentes 2020"
+format: dashboard
+theme: flatly
+css: style.css
+---
+
+```{r}
+# Carregando pacotes
+
+if(!require(pacman)) install.packages("pacman")
+pacman::p_load(readxl,     # Ler excel
+               janitor,    # Limpeza e padronização de dados
+               lubridate,  # Manipulação e extração de datas e horas
+               tidyverse,
+               reactable,  # Criar tabelas interativas
+               bslib,      # Customização de dashboards
+               bsicons,    # Ícones
+               shiny,      # Interatividade
+               knitr,      # Renderização de documentos Quarto / R Markdown
+               kableExtra, # Tabelas avançadas
+               sf,         # Mapas
+               geobr,      
+               leaflet,
+               leaflet.extras, 
+               RColorBrewer, # Paleta de Cores
+               scales)       # Ajustar eixos e cores em gráficos
+```
+
+```{r}
+df <- readRDS("data/acidentes_2020_clean.rds") # Carregando o banco de dados já tratado
+```
+
+# Introdução e Visão Geral
+
+## Introdução {height="25%"}
+
+::: bloco-intro
+Utilizando a base de dados "Acidentes_2020", com dados das ocorrências de acidentes no estado de Minas Gerais, no ano de 2020, que conta com 6.536 ocorrências e 14.052 pessoas envolvidas entre feridos leves, graves e óbitos.
+
+O objetivo central é fazer uma análise descritiva desse banco e avaliar as principais causas dos incidentes, bem como realizar um mapeamento dos tipos de acidentes e das rodovias, entendendo as ocorrências de acordo com variáveis relativas a tempo, dia da semana, mês e outras associações que façam sentido, auxiliando em uma análise o mais completa possível.
+:::
+
+## Análise geral {height="75%"}
+
+```{r}
+  ggplot(df, aes(x = fct_infreq(tipo_acidente))) +
+  geom_bar(fill = "#528B8B") + 
+  geom_text(stat = "count", aes(label = ..count..), 
+            vjust = -0.2, color = "black") +
+  labs(title = "Tipos de acidente por quantidade", x = "Tipo", y = "Frequência") + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+# fct_infreq() vem do pacote for cats, e reordena os fatores pela frequência
+```
+
+```{r}
+df_rank <- df %>%
+  group_by(br) %>% 
+  summarise(acidentes = n(), .groups = "drop") %>% 
+  arrange(desc(acidentes)) %>% 
+  mutate(br = sprintf("%03d", as.integer(br)), 
+         rank = row_number()
+         )
+  
+df_rank %>%
+  slice_head(n = 14) %>% 
+  ggplot(aes(x = fct_reorder(br, acidentes), y = acidentes)) + 
+  geom_col(fill = "#528B8B") + 
+  coord_flip() + 
+  geom_text(aes(label = acidentes), hjust = -0.1, size = 3) + 
+  scale_y_continuous(expand = expansion(mult = c(0, 0.12))) + 
+  labs(title = "Cada BR por número de acidentes",
+       x = "BR", y = "Número de acidentes") +
+  theme_classic()
+# Aqui, é utilizado o sprintf para formatar tudo para três digitos, considerando os zeros a esquerda e a variável rank para dar a posição de cada BR no ranking
+# o scale_y_continuous ajusta a escala do eixo y para que não fique nada cortado 
+
+```
+
+### Box Número de Acidentes {height="50%," width="25%"}
+
+```{r}
+acidentesTotais <- df %>%
+  summarise(acidentes = n(), .groups = "drop")
+
+value_box(
+  title = "Número de Acidentes",
+  value = acidentesTotais,
+  showcase = bsicons::bs_icon("car-front"),
+  theme = value_box_theme(bg = "#e6f2fd", fg = "#0B538E"),
+  class = "border"
+)
+```
+
+#### Box Total Pessoas {height="50%," width="25%"}
+
+```{r}
+
+df_totalPessoas <- df %>%
+  mutate(total_pessoas = feridos_graves + feridos_leves + ilesos)
+
+total_geral <- sum(df_totalPessoas$total_pessoas, na.rm = TRUE)
+
+value_box(
+  title = "Pessoas envolvidas",
+  value = total_geral,
+  showcase = bsicons::bs_icon("people-fill"),
+  theme = value_box_theme(bg = "#e6f2fd", fg = "#0B538E"),
+  class = "border"
+)
+```
+
+# Análises Descritivas
+
+##  {height="50%"}
+
+### Pista e Clima {.tabset}
+
+#### Pista
+
+```{r}
+# Organizando df_pista
+df_pista <- df %>% 
+  group_by(tipo_pista) %>% 
+  summarise(acidentes = n(), .groups = "drop") %>% 
+  mutate(pct = round(acidentes / sum(acidentes) * 100, 1))
+
+# Gráfico com de barras comparando pistas
+ggplot(df_pista, aes(x = fct_infreq(tipo_pista, acidentes), y = acidentes, fill = tipo_pista)) + 
+  geom_col(show.legend = FALSE) + 
+  geom_text(aes(label = paste0(acidentes, " (", pct, "%)")),
+            vjust = -0.5, size = 4) +
+  scale_fill_brewer(palette = "Paired") +
+  labs(title = "Número de acidentes por tipo de pista",
+       x = "Tipo de pista",
+       y = "Número de acidentes") +
+  theme_classic()
+
+# Aqui é utilizado o scale_fill_brewer para definir uma paleta de cores mas agradável
+```
+
+#### Clima
+
+```{r}
+# Organizando df_clima
+df_clima <- df %>%
+  group_by(condicao_metereologica) %>% 
+  summarise(acidentes = n(), .groups = "drop") %>% 
+  filter(condicao_metereologica != "Ignorado") %>% 
+  mutate(pct = round(acidentes / sum(acidentes) * 100, 1)) 
+
+# Gráfico com barras comparando as condições metereologicas (mesmas funções usadas no gráfico de tipos de pista)
+ggplot(df_clima, aes(x = fct_infreq(condicao_metereologica, acidentes), y = acidentes, fill = condicao_metereologica)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = paste0(acidentes, " (", pct, "%)")),
+            vjust = -0.5, size = 4) +
+  scale_fill_brewer(palette = "Paired") +
+  labs(title = "Número de acidentes por condição climática",
+       x = "Condição metereológica",
+       y = "Número de acidentes") +
+  theme_classic()
+```
+
+### Horário/Dia/Mes {.tabset}
+
+#### Horário
+
+```{r}
+# Organizando o df_horario
+df_horario <- df %>%
+  mutate(horario = hour(horario)) %>%
+  group_by(horario) %>%
+  summarise(acidentes = n(), .groups = "drop") 
+
+# Gráfico de Linhas com o número de acidentes por hora do dia
+ggplot(df_horario, aes(x = horario, y = acidentes)) +
+  geom_line(color = "steelblue", size = 1.3) + 
+  geom_point(color = "black", size = 2) + 
+  scale_x_continuous(breaks = 0:23) + 
+  labs(title = "Número de acidentes por hora do dia",
+       x = "Hora do dia",
+       y = "Número de acidentes") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5)) 
+```
+
+#### Dias
+
+```{r}
+# Contando os acidentes por dia da semana
+acidentes_dia_semana <- df %>%
+  count(dia_semana, name = "total") %>%
+  mutate(perc = total / sum(total) * 100) %>%
+  arrange(desc(total))
+
+# Gráfico com os dias da semana
+ggplot(acidentes_dia_semana, aes(x = dia_semana, y = total)) +
+  geom_col(fill = "#5F9EA0") +
+  geom_text(aes(label = paste0(total, " (", round(perc, 1), "%)")),
+            vjust = -0.5,
+            size = 3) +
+  labs(title = "Número de acidentes por dia da semana",
+       x = "Dia da semana", y = "Total de acidentes") +
+  theme_classic()
+```
+
+#### Meses
+
+```{r}
+# Contando os acidentes por mês ocorrido
+acidentes_mes <- df %>%
+  count(mes, name = "total") %>%
+  mutate(perc = total / sum(total) * 100) %>%
+  arrange(desc(total))
+
+# Gráfico com os meses
+ggplot(acidentes_mes, aes(x = mes, y = total)) +
+  geom_col(fill = "#5F9EA0") +
+  geom_text(aes(label = paste0(total, " (", round(perc, 1), "%)")),
+            vjust = -0.5,
+            size = 2.5) +
+  labs(title = "Número de acidentes por mês",
+       x = "Mês", y = "Total de acidentes") +
+  theme_classic()
+```
+
+## Gráficos Rodovias {.tabset}
+
+### Top 14 BRs
+
+```{r}
+df_rank <- df %>%
+  group_by(br) %>% 
+  summarise(acidentes = n(), .groups = "drop") %>% 
+  arrange(desc(acidentes)) %>% 
+  mutate(br = sprintf("%03d", as.integer(br)), 
+         rank = row_number()
+         )
+  
+df_rank %>%
+  slice_head(n = 14) %>% 
+  ggplot(aes(x = fct_reorder(br, acidentes), y = acidentes)) + 
+  geom_col(fill = "#4A708B") + 
+  coord_flip() + 
+  geom_text(aes(label = acidentes), hjust = -0.1, size = 3) + 
+  scale_y_continuous(expand = expansion(mult = c(0, 0.12))) + 
+  labs(title = "Cada BR por número de acidentes",
+       x = "BR", y = "Número de acidentes") +
+  theme_classic()
+```
+
+### Top 5 Trechos
+
+```{r}
+# Agrupa os acidentes por BR e km
+df_km <- df %>%
+  filter(!br %in% c("NA")) %>% 
+  group_by(br, km) %>% 
+  summarise(acidentes = n(), .groups = "drop") %>% 
+  mutate(br = paste0("BR - ", sprintf("%03d", as.integer(br)))) 
+
+# Top 5 trechos de cada BR
+df_kmTop5 <- df_km %>%
+  filter(!br %in% c("BR - 265", "BR - 352")) %>% 
+  group_by(br) %>% 
+  slice_max(order_by = acidentes, n = 5, with_ties = FALSE) %>% 
+  arrange(br, desc(acidentes)) 
+
+# Cores dos gráficos
+cores <- colorRampPalette(brewer.pal(12, "Set2"))(14)
+
+# Gráfico com os top 5 de cada BR
+ggplot(df_kmTop5, aes(x = reorder(km, -acidentes), y = acidentes, fill = br)) + 
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ br, scales = "free_x") + 
+  geom_text(aes(label = acidentes), vjust = 0.3, size = 3) + 
+  labs(title = "Top 5 trechos com mais acidentes em cada BR",
+       x = "Quilômetro",
+       y = "Total de acidentes") +
+  scale_fill_manual(values = cores) +
+  theme_minimal()
+
+# Aqui, é usado o slice_max para selecionar os trechos e retirar os empates, garantindo somente 5 trechos
+# O colorRampPalette serve para interpolar a paleta até 14 cores, já que essa paleta tem somente 12
+# facet_wrap é pra criar os subgráficos, um para cada br
+```
+
+### Top 20 Cidades
+
+```{r}
+# Top 20 Cidades com mais acidentes
+df_rankCity <- df %>%
+  group_by(municipio) %>% 
+  summarise(acidentes = n(), .groups = "drop") %>% 
+  arrange(desc(acidentes)) %>% 
+  mutate(rank = row_number()) 
+
+# Ranking com as 20 cidades com mais acidentes
+df_rankCity %>%
+  slice_head(n = 20) %>% 
+  ggplot(aes(x = fct_reorder(municipio, acidentes), y = acidentes)) +
+  geom_col(fill = "#4A708B") + 
+  coord_flip() +
+  geom_text(aes(label = acidentes), hjust = -0.1, size = 3) + 
+  scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
+  labs(title = "Top 20 cidades por número de acidentes",
+       x = "Cidades", y = "Número de acidentes") +
+  theme_classic()
+
+# O slice_head para manter apenas as 20 primeiras linhas do ranking
+```
+
+# Variáveis Numéricas
+
+## Pessoas envolvidas (Tabela) {height="50%"}
+
+```{r}
+df_numPesEnv <- df %>%
+  summarise(
+    `Total de Acidentes` = n(),
+    Média   = mean(pessoas, na.rm = TRUE),
+    Mediana = median(pessoas, na.rm = TRUE),
+    Mínimo  = min(pessoas, na.rm = TRUE),
+    Q1      = quantile(pessoas, 0.25, na.rm = TRUE),
+    Q3      = quantile(pessoas, 0.75, na.rm = TRUE),
+    Máximo  = max(pessoas, na.rm = TRUE),
+    Desvio  = sd(pessoas, na.rm = TRUE)
+  ) %>%
+  pivot_longer(
+    everything(),
+    names_to = "Estatística",
+    values_to = "Valor"
+  )
+
+df_numPesEnv %>%
+  kable(
+    caption = "Resumo estatístico da variável pessoas",
+    digits = 2,
+    col.names = c("Estatística", "Valor"),
+    align = c("l", "c")   # alinhamento: esquerda e centro
+  ) %>%
+  kable_styling(full_width = FALSE, 
+                position = "center", 
+                bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+# pivot_longer converte o resultado para o formato long e manter somente duas colunas
+# kable() para criar uma tabela simples e kable_styling() para estilizar com a extenção kableExtra
+```
+
+### Histograma com pessoas envolvidas {height="50%"}
+
+```{r}
+ggplot(df, aes(x = pessoas)) +
+  geom_histogram(binwidth = 1, fill = "#4682B4", color = "black") + # 
+  geom_text(stat = "bin", binwidth = 1, 
+            aes(label = ..count..), 
+            vjust = -0.5, size = 3) +
+  labs(
+    title = "Distribuição do número de pessoas envolvidas nos acidentes",
+    x = "Número de pessoas",
+    y = "Frequência"
+  ) +
+  theme_minimal()
+```
+
+## Número de Veículos Envolvidos (Tabela)
+
+```{r}
+# Categorias para número de veículos
+df_cat <- df %>%
+  mutate(cat_veiculos = case_when(
+    veiculos == 1 ~ "1 veículo",
+    veiculos == 2 ~ "2 veículos",
+    veiculos >= 3 ~ "3+ veículos",
+    TRUE ~ NA_character_
+  ))
+
+# Contagem por categoria
+contagem <- df_cat %>%
+  filter(!is.na(cat_veiculos)) %>%
+  count(cat_veiculos) %>%
+  mutate(proporcao = round(100 * n / sum(n), 1))
+
+contagem %>%
+  kable(
+    caption = "Distribuição de acidentes por número de veículos",
+    col.names = c("Categoria", "Frequência", "Proporção (%)"),
+    align = c("l", "c", "c")
+  ) %>%
+  kable_styling(
+    full_width = FALSE, 
+    position = "center",
+    bootstrap_options = c("striped", "hover", "condensed", "responsive")
+  )
+
+# df_cat passa cada acidente para um classificação qualitativa baseada no número de veículos envolvidos
+```
+
+### Distribuição e Proporções {.tabset}
+
+#### Proporções
+
+```{r}
+# Gráfico de setores da proporção de acidentes
+ggplot(contagem, aes(x = "", y = proporcao, fill = cat_veiculos)) +
+  geom_col(width = 1, color = "white", show.legend = TRUE) +
+  coord_polar(theta = "y", start = 0) +
+  geom_text(
+    aes(label = paste0(cat_veiculos, ": ", proporcao, "%")),
+    position = position_stack(vjust = 0.5), size = 4, color = "white", fontface = "bold"
+  ) +
+  scale_fill_brewer(palette = "Set2") + # paleta bonita
+  labs(
+    title = "Proporção de acidentes por número de veículos envolvidos",
+    fill = "Categoria: "
+  ) +
+  theme_void() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 12, face = "bold"),
+    legend.position = "bottom"
+  )
+```
+
+#### Distribuição do Número de Veículos
+
+```{r}
+# Gráfico de barras da distribuição do número de veículos envolvidos
+ggplot(contagem, aes(x = cat_veiculos, y = n, fill = cat_veiculos)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = n), vjust = -0.5, size = 3.5) +
+  scale_fill_brewer(palette = "Set2") + 
+  labs(
+    title = "Distribuição do número de veículos envolvidos nos acidentes",
+    x = "Número de veículos",
+    y = "Quantidade de acidentes"
+  ) +
+  theme_minimal()
+```
+
+# Vítimas
+
+## Tabela de Vítimas
+
+```{r}
+resumoVitimas <- df %>%
+  summarise(
+    Mínimo = min(mortos, na.rm = TRUE),
+    Q1 = quantile(mortos, 0.25, na.rm = TRUE),
+    Média = mean(mortos, na.rm = TRUE),
+    Mediana = median(mortos, na.rm = TRUE),
+    Q3 = quantile(mortos, 0.75, na.rm = TRUE),
+    Máximo = max(mortos, na.rm = TRUE),
+    Desvio = sd(mortos, na.rm = TRUE),
+  ) %>%
+  pivot_longer(
+    everything(),
+    names_to = "Estatística",
+    values_to = "Valor"
+  )
+
+resumoVitimas %>%
+  kable(
+    caption = "Resumo estatístico da variável mortos",
+    digits = 2,
+    col.names = c("Estatística", "Valor"),
+    align = c("l", "c")
+  ) %>%
+  kable_styling(
+    full_width = FALSE,
+    position = "center",
+    bootstrap_options = c("striped", "hover", "condensed", "responsive")
+  )
+```
+
+### Histograma com o número de vítimas
+
+```{r}
+# Histograma com o número de vítimas
+ggplot(df, aes(x = mortos)) +
+  geom_histogram(binwidth = 1, fill = "#C1CDC1", color = "black") +
+  geom_text(stat = "bin", binwidth = 1, aes(label = ..count..), 
+            vjust = -0.5, size = 3) +
+  labs(title = "Distribuição do número de mortos nos acidentes",
+       x = "Número de mortos", y = "Frequência") +
+  theme_minimal()
+```
+
+## Tabela de Feridos
+
+```{r}
+resumoFeridos <- df %>%
+  summarise(
+    Mínimo = min(feridos, na.rm = TRUE),
+    Q1 = quantile(feridos, 0.25, na.rm = TRUE),
+    Média = mean(feridos, na.rm = TRUE),
+    Mediana = median(feridos, na.rm = TRUE),
+    Q3 = quantile(feridos, 0.75, na.rm = TRUE),
+    Máximo = max(feridos, na.rm = TRUE),
+    Desvio = sd(feridos, na.rm = TRUE)
+  ) %>%
+  pivot_longer(
+    everything(),
+    names_to = "Estatística",
+    values_to = "Valor"
+  )
+
+resumoFeridos %>%
+  kable(
+    caption = "Resumo estatístico da variável feridos",
+    digits = 2,
+    col.names = c("Estatística", "Valor"),
+    align = c("l", "c")
+  ) %>%
+  kable_styling(
+    full_width = FALSE,
+    position = "center",
+    bootstrap_options = c("striped", "hover", "condensed", "responsive")
+  )
+```
+
+### Histograma com o número de feridos
+
+```{r}
+# Histograma com o número de feridos
+ggplot(df, aes(x = feridos)) +
+  geom_histogram(binwidth = 1, fill = "#C1CDC1", color = "black") +
+  geom_text(stat = "bin", binwidth = 1, aes(label = ..count..), 
+            vjust = -0.5, size = 3) +
+  labs(title = "Distribuição do número de feridos nos acidentes",
+       x = "Número de feridos", y = "Frequência") +
+  theme_minimal()
+```
+
+# Comparativo Gravidade
+
+## Comparativo entre feridos leves, graves e ilesos (Gráfico)
+
+```{r}
+# Filtro e transformação para tipo long
+df_long <- df %>%
+  select(feridos_leves, feridos_graves, ilesos) %>%
+  pivot_longer(cols = everything(),
+               names_to = "Tipo",
+               values_to = "Quantidade")
+
+# Agrupar por tipo e soma dos valores
+tabelaEnvolvidos <- df_long %>%
+  group_by(Tipo) %>%
+  summarise(Total = sum(Quantidade, na.rm = TRUE))
+
+# Gráfico de barras comparativo
+ggplot(tabelaEnvolvidos, aes(x = reorder(Tipo, -Total), y = Total, fill = Tipo)) +
+  geom_col(width = 0.6) +
+  geom_text(aes(label = Total), vjust = -0.5, size = 4) +
+  scale_fill_manual(
+    values = c("feridos_leves" = "#CD5555", 
+               "feridos_graves" = "#8B3A3A",
+               "ilesos" = "#FF6A6A"),
+    labels = c("feridos_leves" = "Feridos Leves",
+               "feridos_graves" = "Feridos Graves",
+               "ilesos" = "Ilesos")
+    ) +
+    scale_x_discrete(
+      labels = c("feridos_leves" = "Feridos Leves",
+                 "feridos_graves" = "Feridos Graves",
+                 "ilesos" = "Ilesos")
+    ) +
+  
+  labs(title = "Comparativo: Feridos Leves x Ilesos x Feridos Graves",
+       x = "Tipo de estado do envolvido", y = "Total de ocorrências") +
+  theme_minimal()
+
+# scale_x_discrete é usado para mudar os nomes do eixo x e formata-los para nomes mais agradáveis
+```
+
+# Associações
+
+## Tipo de Acidente x Condição Metereológica
+
+```{r}
+# Tipo de Acidente x Condição Metereológica
+df_semIgnorado <- df %>%
+  filter(condicao_metereologica != "Ignorado")
+
+df_prop <- df_semIgnorado %>%
+  count(tipo_acidente, condicao_metereologica) %>%
+  group_by(tipo_acidente) %>%
+  mutate(proporcao = n / sum(n))
+
+ggplot(df_prop, aes(x = tipo_acidente, y = proporcao, fill = condicao_metereologica)) +
+  geom_col(alpha = 0.8) + 
+  geom_text(aes(label = scales::percent(proporcao, accuracy = 1)),
+            position = position_stack(vjust = 0.5), size = 3, color = "black") +
+  labs(
+    title = "Proporção de Tipos de Acidente por Condição Meteorológica",
+    x = "Tipo de Acidente",
+    y = "Proporção",
+    fill = "Condição Meteorológica"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_brewer(palette = "Set2")
+```
+
+### Número de Veículos x Tipo de Acidente {.tabset}
+
+#### Número de Veículos x Tipo de Acidente (Gráfico)
+
+```{r}
+resumo_tipoAcidente <- df %>%
+  group_by(tipo_acidente) %>%
+  summarise(
+    media_veiculos = mean(veiculos, na.rm = TRUE),
+    mediana_veiculos = median(veiculos, na.rm = TRUE),
+    dp_veiculos = sd(veiculos, na.rm = TRUE),  # Desvio padrão para barras de erro
+    n_acidentes = n(),
+    .groups = "drop"
+  ) %>%
+  arrange(media_veiculos)
+
+resumo_tipoAcidente$erro_superior <- resumo_tipoAcidente$media_veiculos + resumo_tipoAcidente$dp_veiculos
+resumo_tipoAcidente$erro_inferior <- resumo_tipoAcidente$media_veiculos - resumo_tipoAcidente$dp_veiculos
+
+# Gráfico de barras de médias com barras de erro
+ggplot(resumo_tipoAcidente, aes(x = reorder(tipo_acidente, media_veiculos), y = media_veiculos)) +  # Reordena por média
+  geom_bar(stat = "identity", fill = "lightblue", alpha = 0.8, width = 0.7) +
+  geom_errorbar(aes(ymin = erro_inferior, ymax = erro_superior), 
+                width = 0.2, color = "darkblue", linewidth = 0.8) +  # Barras de erro (± DP)
+  labs(
+    title = "Média de Veículos Envolvidos por Tipo de Acidente",
+    subtitle = "Com barras de erro (±1 desvio padrão); Engavetamento se destaca",
+    x = "Tipo de Acidente (ordenado por média crescente)",
+    y = "Média de Veículos"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8)) +  
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)), limits = c(0, NA))  # Começa em 0, espaço no topo
+
+# Esse gráfico, utilizado para mostrar que, para cada tipo de acidente, quantos veículos em média se envolveram.
+# As barras representam as médias
+# As barras de erro, mostram a variabilidade (+- 1 dp em torno da média), e quanto maior a barra, maior a dispersão dos dados. 
+# Por exemplo, engavetamento tem uma barra de erro grande, mostrando que alguns engavetamentos têm poucos veículos envolvidos, outros tem muitos
+```
+
+#### Número de Veículos x Tipo de Acidente (Tabela)
+
+```{r}
+resumo_tipoAcidente %>%
+  kable(
+    caption = "Resumo por Tipo de Acidente x Número de Veículos",
+    col.names = c("Tipo de Acidente", "Média de Veículos", "Mediana de Veículos", "Desvio Padrão", "Número de Acidentes", "Erro Superior", "Erro Inferior"),
+    align = c("l", "c", "c", "c", "c", "c", "c")
+  ) %>%
+  kable_styling(
+    full_width = FALSE, 
+    position = "center",
+    bootstrap_options = c("striped", "hover", "condensed", "responsive")
+  )
+```
+
+## Tipo de Acidente x Mortos/Feridos
+
+```{r}
+resumoTipXVit <- df %>%
+  group_by(tipo_acidente) %>%
+  summarise(
+    media_mortos = mean(mortos, na.rm = TRUE),
+    media_feridos = mean(feridos, na.rm = TRUE)
+  ) %>%
+  pivot_longer(cols = c(media_mortos, media_feridos),
+               names_to = "tipo_vitima",
+               values_to = "media")
+
+resumoTipXVit$tipo_vitima <- recode(resumoTipXVit$tipo_vitima,
+                                    media_mortos = "Méd. Mortos",
+                                    media_feridos = "Méd. Feridos") 
+
+# Gráfico de barras agrupadas Tipo Acidentes x Mortos/Feridos
+ggplot(resumoTipXVit, aes(x = reorder(tipo_acidente, media), y = media, fill = tipo_vitima)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
+  labs(
+    title = "Média de Mortos e Feridos por Tipo de Acidente",
+    x = "Tipo de Acidente",
+    y = "Média de Pessoas",
+    fill = "Tipo de Vítima"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_manual(values = c("Méd. Mortos" = "#CD2626", "Méd. Feridos" = "#528B8B")) +
+  coord_flip()
+```
+
+# Mapas
+
+```{r}
+leaflet(df) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  
+  # Hotspots gerais (vermelho crescente)
+  addHeatmap(
+    lng = ~longitude, lat = ~latitude,
+    blur = 25,
+    max = 0.1,
+    radius = 15,
+    gradient = "Reds"  # paleta em tons de vermelho
+  ) %>%
+  
+  # Pontos individuais (clicáveis)
+  addCircleMarkers(
+    lng = ~longitude,
+    lat = ~latitude,
+    radius = 3,
+    stroke = FALSE,
+    fillOpacity = 0.5,
+    color = "#5F9EA0",
+    popup = ~paste0(
+      "<b>Rodovia:</b> ", br, "<br>",
+      "<b>KM:</b> ", km, "<br>",
+      "<b>Município:</b> ", municipio, "<br>",
+      "<b>Tipo de Acidente:</b> ", tipo_acidente, "<br>",
+      "<b>Pessoas Envolvidas:</b> ", pessoas, "<br>",
+      "<b>Veículos Envolvidos:</b> ", veiculos, "<br>",
+      ifelse(mortos > 0, paste0("<b>Óbitos:</b> ", mortos, "<br>"), "")
+    )
+  ) %>%
+  
+  # Legenda em vermelho crescente
+  addLegend(
+    position = "bottomright",
+    colors = c("#FFCCCC", "#FF6666", "#CC0000"),
+    labels = c("Menor intensidade", "Média intensidade", "Maior intensidade"),
+    title = "Hotspots de Acidentes"
+  )
+
+# leaflet(df) cria o objeto do mapa e addProviderTiles() adiciona o fundo do mapa da CartoDB
+# addHeatmap() cria as manchas vermelhas de intensidade, onde é passado as coordenadas e ajusta com outras variáveis
+# addCircleMarkers() desenha os circulos em cada acidente, stroke e fillOpacity remove o contorno e deixa quase transparente
+# popup para criar a caixa de informações ao clicar nos círculos
+```
+
+# Conclusão
+
+## Texto Conclusão Final
+
+::: bloco-conclusao
+-   Analisando os gráficos da aba de análises descritivas, é possível concluir que os acidentes ocorrem, em sua maior parte, em pistas simples e em condições de céu claro. Isso indica que a maioria dos casos **não** está diretamente relacionada a más condições meteorológicas, mas sim a fatores como **imprudência, distrações, excesso de velocidade ou até mesmo às condições da via**, que parecem ter **maior** peso do que o clima em si. Ainda assim, as condições adversas são relevantes e exigem atenção redobrada, embora representem menor proporção.
+
+-   Também é possível observar os principais horários em que os acidentes acontecem, concentrados principalmente entre **15h e 19h**, o que pode estar associado ao maior volume de tráfego nesse intervalo, devido a **deslocamentos intermunicipais relacionados ao trabalho**. O fato de haver outro pico de ocorrências por volta das **7h** da manhã reforça essa interpretação.
+
+Ao analisar as rodovias e trechos, observa-se que as rodovias:
+
+-   **BR-381**, no quilômetro **490**;
+
+-   **BR-040**, no quilômetro **511**;
+
+-   **BR-116**, no quilômetro **415**;
+
+-   **BR-262**, no quilômetro **385**;
+
+são as que apresentam os maiores índices de acidentes. Isso pode indicar problemas como falta de sinalização, más condições da pista ou curvas muito sinuosas nesses pontos.
+
+-   Vale ressaltar que, embora a BR-262 apresente um número absoluto de ocorrências maior do que a BR-365, ao comparar os trechos mais críticos de cada uma — quilômetro 865 da BR-262, com **8 acidentes**, e quilômetro 624 da BR-365, com **11 acidentes** —, o trecho da BR-365 pode ser considerado mais perigoso, merecendo **maior atenção**.
+
+-   Em uma análise mais rápida de algumas variáveis numéricas, é possível observar que a maior parte dos acidentes envolve duas pessoas e costuma ocorrer com apenas um veículo. A maior proporção dos registros está entre acidentes com 1 ou 2 veículos, sendo raros os casos que envolvem 3 ou mais.
+
+-    Também é importante examinar as vítimas desses acidentes. Nota-se que a maioria não resulta em óbitos; quando há, geralmente se trata de apenas uma fatalidade, sendo ainda mais incomuns os casos com duas ou mais. No entanto, considerando todos os acidentes, observa-se que, em sua maioria, há pelo menos um ferido. Entre as classificações de gravidade, predominam os ferimentos leves, enquanto os graves aparecem com menor frequência.
+
+Ao analisar as associações realizadas, é possível extrair diversas conclusões relevantes.
+
+-    Na **proporção de tipos de acidente por condição meteorológica**, observa-se que determinados acidentes tendem a ocorrer em função do clima. Por exemplo, em períodos de chuva, os tipos mais frequentes são **capotamento, colisão frontal e saída de leito carroçável**, o que indica provável perda de controle por parte do motorista devido às condições da pista.
+
+-    No gráfico de **média de veículos envolvidos por tipo de acidente**, evidencia-se que a maior parte das ocorrências envolve **um ou dois veículos**, com exceção clara dos **engavetamentos**. Nesse caso, é natural que haja envolvimento de vários veículos, já que costumam ocorrer em sequência, em vias de grande fluxo. Além disso, a alta variação observada nesse tipo de acidente reforça que o número de veículos envolvidos pode oscilar bastante. Esse resultado também apoia a tese de que muitos acidentes estão ligados a **fatores individuais**, como imprudência ou falha do condutor.
+
+-    Por fim, o gráfico de **média de mortos e feridos por tipo de acidente** evidencia que os maiores índices de óbitos ocorrem em **colisões frontais** e **atropelamentos de pedestres**, o que é coerente, pois são situações com alto potencial de letalidade. De modo geral, ao considerar tanto mortos quanto feridos, acidentes como **colisão frontal, engavetamento e capotamento** apresentam as maiores médias de vítimas.
+:::

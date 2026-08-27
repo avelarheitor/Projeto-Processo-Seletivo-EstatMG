@@ -1,0 +1,14 @@
+# Configurações locais do RStudio e R
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+.Renviron
+
+# Cache e arquivos intermediários do Quarto / Knitr
+/.quarto/
+*_cache/
+
+# Sistemas operacionais
+.DS_Store
+Thumbs.db
