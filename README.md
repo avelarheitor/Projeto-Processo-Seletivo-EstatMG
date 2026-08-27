@@ -2,9 +2,12 @@
 
 > Dashboard interativo desenvolvido em R e Quarto para análise de ocorrências, tipos de acidentes e condições de rodovias no estado de Minas Gerais durante o ano de 2020.
 
+**[Acesse o Dashboard Interativo Online](https://avelarheitor.github.io/Projeto-Processo-Seletivo-EstatMG/)**
 ---
 
 ## Sobre o Projeto
+
+Essa foi uma das etapas do processo seletivo da empresa júnior que trabalhei, foi pedido uma análise descritiva do banco em questão e o resultado foi extremamente satisfatório para mim, tendo em vista que foi meu primeiro contato mais forte com o R.
 
 Este projeto analisa a base de dados de acidentes de trânsito ocorridos no estado de Minas Gerais no ano de 2020. A base conta com **6.536 ocorrências** e **14.052 pessoas envolvidas** (incluindo feridos leves, graves e óbitos).
 
@@ -83,7 +86,7 @@ Este projeto analisa a base de dados de acidentes de trânsito ocorridos no esta
 
 Projeto desenvolvido para o **Projeto EstatMG**.
 
-- **Autor**: Heitor
-- **GitHub**: [@heitor](https://github.com/)
-- **LinkedIn**: [Seu Perfil no LinkedIn](https://linkedin.com/in/)
-- **Email**: seu.email@exemplo.com
+- **Autor**: Heitor Pereira Avelar
+- **GitHub**: [@avelarheitor](https://github.com/avelarheitor/)
+- **LinkedIn**: [Heitor Avelar](https://linkedin.com/in/heitorpavelar)
+- **Email**: heitorpereiraavelar@gmail.com
