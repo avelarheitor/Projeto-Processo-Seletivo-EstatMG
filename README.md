@@ -1,10 +1,10 @@
-# 🚗 Análise Descritiva de Acidentes em Minas Gerais (2020)
+# Análise Descritiva de Acidentes em Minas Gerais (2020)
 
 > Dashboard interativo desenvolvido em R e Quarto para análise de ocorrências, tipos de acidentes e condições de rodovias no estado de Minas Gerais durante o ano de 2020.
 
 ---
 
-## 📌 Sobre o Projeto
+## Sobre o Projeto
 
 Este projeto analisa a base de dados de acidentes de trânsito ocorridos no estado de Minas Gerais no ano de 2020. A base conta com **6.536 ocorrências** e **14.052 pessoas envolvidas** (incluindo feridos leves, graves e óbitos).
 
@@ -15,7 +15,7 @@ Este projeto analisa a base de dados de acidentes de trânsito ocorridos no esta
 
 ---
 
-## 🛠️ Tecnologias Utilizadas
+## Tecnologias Utilizadas
 
 - **Linguagem**: [R](https://www.r-project.org/)
 - **Relatório & Dashboard**: [Quarto](https://quarto.org/)
@@ -28,7 +28,7 @@ Este projeto analisa a base de dados de acidentes de trânsito ocorridos no esta
 
 ---
 
-## 📁 Estrutura do Repositório
+## Estrutura do Repositório
 
 ```text
 ├── data/
@@ -44,7 +44,7 @@ Este projeto analisa a base de dados de acidentes de trânsito ocorridos no esta
 
 ---
 
-## 🚀 Como Executar o Projeto Localmente
+## Como Executar o Projeto Localmente
 
 ### Pré-requisitos
 - **R** (versão 4.0 ou superior)
@@ -79,7 +79,7 @@ Este projeto analisa a base de dados de acidentes de trânsito ocorridos no esta
 
 ---
 
-## ✉️ Contato & Autoria
+## Contato & Autoria
 
 Projeto desenvolvido para o **Projeto EstatMG**.
 
