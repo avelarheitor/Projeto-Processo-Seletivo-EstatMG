@@ -58,8 +58,8 @@ Este projeto analisa a base de dados de acidentes de trânsito ocorridos no esta
 
 1. **Clone o repositório:**
    ```bash
-   git clone https://github.com/SEU-USUARIO/SEU-REPOSITORIO.git
-   cd SEU-REPOSITORIO
+   git clone https://github.com/avelarheitor/Projeto-Processo-Seletivo-EstatMG/
+   cd Projeto-Processo-Seletivo-EstatMG
    ```
 
 2. **Abra o projeto no RStudio:**
